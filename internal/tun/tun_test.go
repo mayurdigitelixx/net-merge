@@ -2,6 +2,7 @@ package tun
 
 import (
 	"errors"
+	"net"
 	"net/netip"
 	"strings"
 	"testing"
@@ -29,6 +30,9 @@ func TestPickNetSkipsAdaptersOnTheRange(t *testing.T) {
 }
 
 func TestUsedNetsReadsSubnets(t *testing.T) {
+	if ifs, _ := net.Interfaces(); len(ifs) == 0 {
+		t.Skip("the OS lists no adapters (qemu-user on s390x can't translate netlink)")
+	}
 	used := usedNets("")
 	for _, u := range used {
 		if u.String() == "127.0.0.1/8" {
