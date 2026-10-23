@@ -58,11 +58,56 @@ type Slot struct {
 	lastIn, lastOut [2]int64
 	rateIn, rateOut [2]float64 // bytes/s over the last tick
 	peak            [2]float64 // observed capacity: max recent rateIn+rateOut
+	flows           [2]map[*flowActivity]struct{}
+	lastPick        [2]time.Time
+	stale           [2]time.Duration
 
 	// The adapter's total traffic from the OS's counters (all apps, not only net-merge's flows).
 	linkIn, linkOut         uint64
 	linkRateIn, linkRateOut float64
 	linkPrimed              bool
+}
+
+// flowActivity separates recent data transfer from long-lived idle sockets. Byte
+// accounting is lock-free; membership and sampled activity are guarded by mu.
+type flowActivity struct {
+	bytes atomic.Int64
+	last  int64
+	idle  time.Duration
+}
+
+const (
+	flowIdleAfter      = 2 * time.Second
+	exploreAfter       = 5 * time.Second
+	estimateStaleAfter = 30 * time.Second
+)
+
+func (s *Scheduler) track(sl *Slot, f Family) *flowActivity {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	a := &flowActivity{}
+	if sl.flows[f] == nil {
+		sl.flows[f] = make(map[*flowActivity]struct{})
+	}
+	sl.flows[f][a] = struct{}{}
+	return a
+}
+
+func (s *Scheduler) untrack(sl *Slot, f Family, a *flowActivity) {
+	s.mu.Lock()
+	delete(sl.flows[f], a)
+	s.mu.Unlock()
+}
+
+func (sl *Slot) busy(f Family) int64 {
+	// Acquired but not yet tracked flows are connecting, and must count too.
+	n := max(int64(0), sl.actF[f].Load()-int64(len(sl.flows[f])))
+	for a := range sl.flows[f] {
+		if a.idle < flowIdleAfter {
+			n++
+		}
+	}
+	return n
 }
 
 func (sl *Slot) ip(f Family) net.IP {
@@ -89,9 +134,9 @@ type SlotStats struct {
 	Peak, Peak6       float64
 }
 
-// Scheduler is weighted least-active-flows, per address family: each new flow goes to the NIC
-// with the lowest (active + 1) / weight among those that have an address of that family. Only
-// new flows take the lock.
+// Scheduler uses weighted least-busy-flows per address family. Automatic mode
+// discounts idle TCP sockets and periodically explores eligible links; static mode
+// retains weighted least-open-flows. Data transfer accounting stays lock-free.
 type Scheduler struct {
 	mu    sync.Mutex
 	slots []*Slot
@@ -152,11 +197,19 @@ func (s *Scheduler) Update(nics []nics.Nic) {
 			found.weight = [2]float64{n.Weight, n.Weight}
 		}
 		old := found.addr.Load()
-		if !old.ip4.Equal(na.ip4) {
-			found.state[Fam4] = stateUnknown // new address: re-verify
-		}
-		if !old.ip6.Equal(na.ip6) {
-			found.state[Fam6] = stateUnknown
+		for _, f := range []Family{Fam4, Fam6} {
+			changed := !old.ip4.Equal(na.ip4)
+			if f == Fam6 {
+				changed = !old.ip6.Equal(na.ip6)
+			}
+			if changed {
+				found.state[f] = stateUnknown
+				found.lastProbe[f], found.downUntil[f], found.lastPick[f] = time.Time{}, time.Time{}, time.Time{}
+				found.peak[f], found.stale[f] = 0, 0
+				if s.auto {
+					found.weight[f] = 1
+				}
+			}
 		}
 		if !old.ip4.Equal(na.ip4) || !old.ip6.Equal(na.ip6) {
 			found.addr.Store(na)
@@ -174,12 +227,14 @@ func (s *Scheduler) Update(nics []nics.Nic) {
 // A NIC counts as measured once it has carried this much (bytes/s, about 0.4 Mbit/s).
 const minMeasuredPeak = 50_000
 
-// Tick samples throughput per family. With auto on, a family's weights follow each NIC's
-// observed peak for that family (floored at 0.05, so a slow path still sees an occasional flow
-// and is re-measured). Until every NIC with that family has been measured the weights stay
-// equal, which spreads load so each one gets measured. The peak holds while a NIC is idle and
-// only decays when it is in use but underperforming, so capacity is remembered across pauses.
+// Tick samples flow activity and throughput per family. Automatic weights follow
+// smoothed capacity estimates (floored at 0.05). Until all links are measured,
+// weights stay equal. Quiet links retain capacity, while stale low estimates
+// gradually recover toward neutral so they can be measured again.
 func (s *Scheduler) Tick(dt time.Duration) {
+	if dt <= 0 {
+		return
+	}
 	// nics.Octets calls into the OS, so read the counters on a snapshot of the slots without s.mu
 	// (it would stall AcquireFor and Update) and take the lock only to store the results.
 	s.mu.Lock()
@@ -217,15 +272,36 @@ func (s *Scheduler) Tick(dt time.Duration) {
 		live, measured := 0, true
 		idle := map[*Slot]bool{}
 		for _, sl := range s.slots {
+			for a := range sl.flows[f] {
+				n := a.bytes.Load()
+				if n != a.last {
+					a.idle = 0
+				} else {
+					a.idle += dt
+				}
+				a.last = n
+			}
 			in, out := sl.bytesIn[f].Load(), sl.bytesOut[f].Load()
 			sl.rateIn[f] = float64(in-sl.lastIn[f]) / sec
 			sl.rateOut[f] = float64(out-sl.lastOut[f]) / sec
 			sl.lastIn[f], sl.lastOut[f] = in, out
 			r := sl.rateIn[f] + sl.rateOut[f]
-			if r >= 0.05*sl.peak[f] {
-				sl.peak[f] = math.Max(r, sl.peak[f]*0.97)
+			if r >= minMeasuredPeak && r >= 0.05*sl.peak[f] {
+				if sl.peak[f] == 0 {
+					sl.peak[f] = r
+				} else {
+					// Fast but smoothed growth, slower decay. Neither a single burst
+					// nor a quiet tick should abruptly invert link preference.
+					tau := 2.0
+					if r < sl.peak[f] {
+						tau = 30
+					}
+					sl.peak[f] += (r - sl.peak[f]) * (1 - math.Exp(-sec/tau))
+				}
+				sl.stale[f] = 0
 			} else {
 				idle[sl] = true
+				sl.stale[f] += dt
 			}
 			if !sl.present || sl.ip(f) == nil {
 				continue
@@ -233,12 +309,12 @@ func (s *Scheduler) Tick(dt time.Duration) {
 			live++
 			maxPeak = math.Max(maxPeak, sl.peak[f])
 		}
-		// An idle NIC's old estimate may be stale or pessimistic (it was measured during a bad
-		// moment and then starved of flows, so it could never correct itself). Let it drift back
-		// up, capped at half of the best NIC, so it keeps getting a fair chance to be re-measured.
+		// Low demand is not evidence of low capacity. Age pessimistic estimates
+		// toward neutral only after a quiet grace period.
 		for sl := range idle {
-			if sl.present && sl.ip(f) != nil && sl.peak[f] > 0 {
-				sl.peak[f] = math.Min(sl.peak[f]*1.03, math.Max(sl.peak[f], 0.5*maxPeak))
+			if sl.present && sl.ip(f) != nil && sl.peak[f] > 0 && sl.stale[f] >= estimateStaleAfter {
+				// Stale low estimates tend toward neutral, not permanent starvation.
+				sl.peak[f] += (maxPeak - sl.peak[f]) * (1 - math.Exp(-sec/30))
 			}
 		}
 		for _, sl := range s.slots {
@@ -308,10 +384,24 @@ func (s *Scheduler) AcquireFor(f Family, skip map[string]struct{}) *Slot {
 	bestScore := math.Inf(1)
 	for i := range pool {
 		sl := pool[(start+i)%len(pool)]
-		if score := float64(sl.actF[f].Load()+1) / sl.weight[f]; score < bestScore {
+		load := sl.actF[f].Load()
+		if s.auto {
+			load = sl.busy(f)
+		}
+		if score := float64(load+1) / sl.weight[f]; score < bestScore {
 			best, bestScore = sl, score
 		}
 	}
+	// Exploration uses only the already health-filtered pool. At most one new
+	// flow per link per interval bypasses weighted scheduling; no test traffic.
+	if s.auto && len(pool) > 1 {
+		for _, sl := range pool {
+			if now.Sub(sl.lastPick[f]) >= exploreAfter && sl.lastPick[f].Before(best.lastPick[f]) {
+				best = sl
+			}
+		}
+	}
+	best.lastPick[f] = now
 	best.active.Add(1)
 	best.actF[f].Add(1)
 	best.total.Add(1)

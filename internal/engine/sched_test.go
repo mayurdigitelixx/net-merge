@@ -38,6 +38,122 @@ func TestEqualWeightsSpreadEvenly(t *testing.T) {
 	}
 }
 
+func TestAutoIgnoresIdleSockets(t *testing.T) {
+	s := NewScheduler([]nics.Nic{nic("A", "10.0.0.1", 1), nic("B", "10.0.0.2", 1)})
+	s.SetAuto(true)
+	a, b := s.slots[0], s.slots[1]
+	for range 20 {
+		a.actF[Fam4].Add(1)
+		s.track(a, Fam4)
+	}
+	s.Tick(flowIdleAfter)
+	if got := a.busy(Fam4); got != 0 {
+		t.Fatalf("idle sockets counted as busy: %d", got)
+	}
+	// A connecting socket still counts; an idle socket becomes busy on data.
+	b.actF[Fam4].Add(1)
+	if got := s.Acquire(nil); got != a {
+		t.Fatal("idle sockets steered new flow away from available link")
+	}
+	s.Release(a)
+	for activity := range a.flows[Fam4] {
+		activity.bytes.Add(1000)
+		break
+	}
+	s.Tick(time.Second)
+	if a.busy(Fam4) != 1 || b.busy(Fam4) != 1 {
+		t.Fatal("recent data and connecting sockets must count")
+	}
+}
+
+func TestAutoExploresWithoutIgnoringHealth(t *testing.T) {
+	s := NewScheduler([]nics.Nic{nic("A", "10.0.0.1", 1), nic("B", "10.0.0.2", 1)})
+	s.SetAuto(true)
+	clock := time.Unix(1000, 0)
+	s.now = func() time.Time { return clock }
+	a, b := s.slots[0], s.slots[1]
+	a.lastPick[Fam4], b.lastPick[Fam4] = clock, clock
+	b.weight[Fam4] = 0.05
+	if got := s.Acquire(nil); got != a {
+		t.Fatal("weighted pick should favor A")
+	}
+	s.Release(a)
+	clock = clock.Add(exploreAfter)
+	a.lastPick[Fam4] = clock
+	if got := s.Acquire(nil); got != b {
+		t.Fatal("starved B should get exploration flow")
+	}
+	s.Release(b)
+	if got := s.Acquire(nil); got != a {
+		t.Fatal("exploration must be bounded")
+	}
+	s.Release(a)
+	clock = clock.Add(exploreAfter)
+	s.SetState(a, Fam4, true)
+	s.SetState(b, Fam4, false)
+	if got := s.Acquire(nil); got != a {
+		t.Fatal("exploration selected failed link")
+	}
+	s.Release(a)
+	s.SetState(b, Fam4, true)
+	s.Fail(b, Fam4, time.Minute)
+	if got := s.Acquire(nil); got != a {
+		t.Fatal("exploration ignored cooldown")
+	}
+	s.Release(a)
+	s.SetState(b, Fam4, true)
+	if got := s.Acquire(map[string]struct{}{"B": {}}); got != a {
+		t.Fatal("exploration ignored skip")
+	}
+}
+
+func TestStaticSchedulingDoesNotExplore(t *testing.T) {
+	s := NewScheduler([]nics.Nic{nic("A", "10.0.0.1", 1), nic("B", "10.0.0.2", 0.05)})
+	clock := time.Unix(1000, 0)
+	s.now = func() time.Time { return clock }
+	s.slots[0].lastPick[Fam4] = clock
+	if got := s.Acquire(nil); got != s.slots[0] {
+		t.Fatal("static weights overridden by exploration")
+	}
+}
+
+func TestAddressChangeResetsLearnedFamily(t *testing.T) {
+	a := nic("A", "10.0.0.1", 1)
+	a.IP6 = net.ParseIP("2001:db8::1")
+	s := NewScheduler([]nics.Nic{a})
+	s.SetAuto(true)
+	sl := s.slots[0]
+	sl.peak = [2]float64{1e6, 2e6}
+	sl.weight = [2]float64{0.1, 0.2}
+	sl.downUntil[Fam4] = time.Now().Add(time.Hour)
+	a.IP = net.ParseIP("10.1.0.1")
+	s.Update([]nics.Nic{a})
+	if sl.peak[Fam4] != 0 || sl.weight[Fam4] != 1 || !sl.downUntil[Fam4].IsZero() {
+		t.Fatal("new IPv4 network retained stale estimate or cooldown")
+	}
+	if sl.peak[Fam6] != 2e6 || sl.weight[Fam6] != 0.2 {
+		t.Fatal("unchanged IPv6 estimate reset")
+	}
+}
+
+func TestThroughputEstimateSmoothsBursts(t *testing.T) {
+	s := NewScheduler([]nics.Nic{nic("A", "10.0.0.1", 1)})
+	s.SetAuto(true)
+	a := s.slots[0]
+	a.bytesIn[Fam4].Add(1e6)
+	s.Tick(time.Second)
+	a.bytesIn[Fam4].Add(10e6)
+	s.Tick(time.Second)
+	if a.peak[Fam4] <= 1e6 || a.peak[Fam4] >= 10e6 {
+		t.Fatal("burst was not smoothed")
+	}
+	peak := a.peak[Fam4]
+	s.Tick(0)
+	if a.peak[Fam4] != peak {
+		t.Fatal("zero duration changed estimate")
+	}
+}
+
 func TestWeightsSkew(t *testing.T) {
 	s := NewScheduler([]nics.Nic{nic("A", "10.0.0.1", 3), nic("B", "10.0.0.2", 1)})
 	p := acquireN(s, 8)

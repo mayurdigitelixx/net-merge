@@ -345,6 +345,13 @@ Tips:
   site that only has IPv6.
 - `net-merge list` shows which connections are used and why others are skipped. `net-merge status`
   shows live numbers.
+- Automatic balancing updates link weights every second using smoothed observed throughput.
+  TCP sockets with no data for two seconds no longer count as busy (they remain open).
+  A healthy link that has received no new flow for five seconds gets an exploration opportunity
+  on a subsequent new connection. Stale low estimates start recovering toward equal preference
+  after 30 seconds without meaningful traffic. No background speed tests are run, and existing
+  connections never move between links. Changing an adapter's IP resets its learned estimate
+  for that address family. These adaptations do not override static weights or health checks.
 
 ## Troubleshooting
 
