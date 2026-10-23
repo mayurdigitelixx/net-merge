@@ -5,6 +5,12 @@ entry here before pushing a version tag.
 
 ## [Unreleased]
 
+### Added
+- **Speed limits per connection** from the tray menu: click a connection and pick 1, 2, 5, 10, 20, 50 or
+  100 MB/s (or *Unlimited*). The cap covers that connection's downloads and uploads across all of its
+  flows and takes effect immediately; the choice is saved and applied again after a restart. Only traffic
+  net-merge relays is capped, so an app bound directly to an adapter is not affected.
+
 ## [0.3.4] - 2026-10-23
 
 ### Added

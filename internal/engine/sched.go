@@ -48,6 +48,7 @@ type Slot struct {
 	actF                  [2]atomic.Int64
 	bytesIn, bytesOut     [2]atomic.Int64
 	probing               [2]atomic.Bool
+	limit                 atomic.Pointer[limitPair] // nil = unlimited; see limit.go
 
 	// guarded by Scheduler.mu
 	weight          [2]float64
@@ -87,16 +88,18 @@ type SlotStats struct {
 	RateIn, RateOut   float64 // through net-merge, both families summed (bytes/s)
 	LinkIn, LinkOut   float64 // through the adapter by any app, from the OS's counters (bytes/s)
 	Peak, Peak6       float64
+	LimitMBps         float64 // cap in MByte/s, 0 = unlimited
 }
 
 // Scheduler is weighted least-active-flows, per address family: each new flow goes to the NIC
 // with the lowest (active + 1) / weight among those that have an address of that family. Only
 // new flows take the lock.
 type Scheduler struct {
-	mu    sync.Mutex
-	slots []*Slot
-	auto  bool
-	now   func() time.Time
+	mu     sync.Mutex
+	slots  []*Slot
+	auto   bool
+	limits map[string]float64 // adapter name -> MByte/s, 0 or absent = unlimited
+	now    func() time.Time
 }
 
 func NewScheduler(nics []nics.Nic) *Scheduler {
@@ -110,6 +113,52 @@ func (s *Scheduler) SetAuto(on bool) {
 	s.mu.Lock()
 	s.auto = on
 	s.mu.Unlock()
+}
+
+// SetLimit caps an adapter at mbPerSec MByte/s across all of its flows and both address families;
+// 0 removes the cap. Saved in the scheduler, so an adapter that is unplugged and comes back keeps it.
+func (s *Scheduler) SetLimit(name string, mbPerSec float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.limits == nil {
+		s.limits = map[string]float64{}
+	}
+	if mbPerSec <= 0 {
+		delete(s.limits, name)
+	} else {
+		s.limits[name] = mbPerSec
+	}
+	for _, sl := range s.slots {
+		if sl.key == name {
+			sl.setLimit(mbPerSec)
+		}
+	}
+}
+
+// SetLimits replaces every cap, e.g. with what was saved on disk at startup.
+func (s *Scheduler) SetLimits(limits map[string]float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.limits = make(map[string]float64, len(limits))
+	for name, mbPerSec := range limits {
+		if name != "" && mbPerSec > 0 {
+			s.limits[name] = mbPerSec
+		}
+	}
+	for _, sl := range s.slots {
+		sl.setLimit(s.limits[sl.key])
+	}
+}
+
+// Limits returns the caps by adapter name in MByte/s, for saving and for `net-merge status`.
+func (s *Scheduler) Limits() map[string]float64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make(map[string]float64, len(s.limits))
+	for name, mbPerSec := range s.limits {
+		out[name] = mbPerSec
+	}
+	return out
 }
 
 func normAddr(n nics.Nic) *slotAddr {
@@ -144,6 +193,7 @@ func (s *Scheduler) Update(nics []nics.Nic) {
 		if found == nil {
 			sl := &Slot{Name: n.Name, Index: n.Index, key: n.Name, weight: [2]float64{n.Weight, n.Weight}, present: true}
 			sl.addr.Store(na)
+			sl.setLimit(s.limits[n.Name])
 			s.slots = append(s.slots, sl)
 			continue
 		}
@@ -392,6 +442,7 @@ func (s *Scheduler) Snapshot() []SlotStats {
 			RateIn:   sl.rateIn[Fam4] + sl.rateIn[Fam6], RateOut: sl.rateOut[Fam4] + sl.rateOut[Fam6],
 			LinkIn: sl.linkRateIn, LinkOut: sl.linkRateOut,
 			Peak: sl.peak[Fam4], Peak6: sl.peak[Fam6],
+			LimitMBps: sl.limitMBps(),
 		}
 		if a.ip4 != nil {
 			st.IP, st.State = a.ip4.String(), sl.state[Fam4].String()

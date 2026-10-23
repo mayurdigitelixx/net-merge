@@ -132,6 +132,11 @@ func (c *common) boot(mode func() string) (*engine.Scheduler, *engine.Balancer, 
 	}
 	sched := engine.NewScheduler(nics)
 	sched.SetAuto(c.auto && len(c.weights) == 0)
+	if limits, err := state.LoadLimits(c.stateDir); err != nil {
+		logx.Printf("warning: %v (ignored)\n", err) // a bad limits file must not stop merging
+	} else {
+		sched.SetLimits(limits)
+	}
 	for _, n := range nics {
 		logx.Printf("  + %s\n", describeNic(n))
 	}
@@ -197,8 +202,12 @@ func formatNICs(snap []engine.SlotStats) string {
 		}
 		// "link" is the adapter's total traffic by any app (Windows' counters); "via net-merge" is the
 		// part net-merge relayed. Apps that bind to adapters directly (qBittorrent) only show in "link".
-		fmt.Fprintf(&sb, "%-14s v4 %-11s v6 %-11s link down %6.1f up %5.1f Mbit/s  via net-merge %6.1f  active %3d  total %5d  w %.2f/%.2f  failed %d%s\n",
-			s.Name, s.State, s.State6, s.LinkIn*8/1e6, s.LinkOut*8/1e6, (s.RateIn+s.RateOut)*8/1e6, s.Active, s.Total, s.Weight, s.Weight6, s.Failed, gone)
+		lim := ""
+		if s.LimitMBps > 0 {
+			lim = fmt.Sprintf("  limit %.0f MB/s", s.LimitMBps)
+		}
+		fmt.Fprintf(&sb, "%-14s v4 %-11s v6 %-11s link down %6.1f up %5.1f Mbit/s  via net-merge %6.1f  active %3d  total %5d  w %.2f/%.2f  failed %d%s%s\n",
+			s.Name, s.State, s.State6, s.LinkIn*8/1e6, s.LinkOut*8/1e6, (s.RateIn+s.RateOut)*8/1e6, s.Active, s.Total, s.Weight, s.Weight6, s.Failed, lim, gone)
 	}
 	return sb.String()
 }

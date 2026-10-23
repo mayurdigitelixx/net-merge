@@ -70,3 +70,11 @@ func TestTrayTooltipFitsWindowsLimit(t *testing.T) {
 		}
 	}
 }
+
+func TestLimitLabel(t *testing.T) {
+	for in, want := range map[float64]string{1: "1", 2.5: "2.5", 100: "100"} {
+		if got := limitLabel(in); got != want {
+			t.Errorf("limitLabel(%v) = %q, want %q", in, got, want)
+		}
+	}
+}

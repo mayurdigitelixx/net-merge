@@ -191,17 +191,17 @@ func Relay(client, upstream net.Conn, sl *Slot, f Family, s *Scheduler) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		pump(upstream, client, &sl.bytesOut[f])
+		pump(upstream, client, &sl.bytesOut[f], sl, false)
 		release()
 	}()
-	pump(client, upstream, &sl.bytesIn[f])
+	pump(client, upstream, &sl.bytesIn[f], sl, true)
 	release()
 	wg.Wait()
 	client.Close()
 	upstream.Close()
 }
 
-func pump(dst, src net.Conn, counter interface{ Add(int64) int64 }) {
+func pump(dst, src net.Conn, counter *atomic.Int64, sl *Slot, down bool) {
 	bp := bufPool.Get().(*[]byte)
 	defer bufPool.Put(bp)
 	buf := *bp
@@ -209,7 +209,7 @@ func pump(dst, src net.Conn, counter interface{ Add(int64) int64 }) {
 		n, err := src.Read(buf)
 		if n > 0 {
 			counter.Add(int64(n))
-			if _, werr := dst.Write(buf[:n]); werr != nil {
+			if _, werr := sl.writePaced(dst, buf[:n], down); werr != nil {
 				dst.Close()
 				src.Close()
 				return

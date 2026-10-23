@@ -4,6 +4,7 @@ package tray
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 	"unicode/utf16"
@@ -45,6 +46,10 @@ type trayUI struct {
 
 	ap autoPauser
 
+	limitClicks chan limitClick
+	rowNames    [trayRows]string
+	limitItems  [trayRows][]*systray.MenuItem
+
 	header, toggleItem, v6Item, autoItem, signInItem *systray.MenuItem
 	versionItem                                      *systray.MenuItem
 	rows                                             []*systray.MenuItem
@@ -65,11 +70,27 @@ func (u *trayUI) onReady() {
 	u.header = systray.AddMenuItem("net-merge", "")
 	u.header.Disable()
 	systray.AddSeparator()
+	u.limitClicks = make(chan limitClick, trayRows)
 	for i := 0; i < trayRows; i++ {
-		r := systray.AddMenuItem("", "")
-		r.Disable()
-		r.Hide()
+		r := systray.AddMenuItem("", "Click to cap this adapter's speed (download and upload)")
 		u.rows = append(u.rows, r)
+		addLimit := func(mbPerSec float64, title string) {
+			it := r.AddSubMenuItemCheckbox(title, limitTip(mbPerSec), false)
+			u.limitItems[i] = append(u.limitItems[i], it)
+			go func() {
+				for range it.ClickedCh {
+					u.limitClicks <- limitClick{row: i, mbPerSec: mbPerSec}
+				}
+			}()
+		}
+		addLimit(0, "Unlimited")
+		for _, mbPerSec := range limitPresets {
+			addLimit(mbPerSec, limitLabel(mbPerSec)+" MB/s")
+		}
+		// Add the children while the row is still in the menu: on Windows a hidden item is
+		// removed from the menu, so converting it to a submenu afterwards fails and only the
+		// entries added later (when they are first checked) would appear.
+		r.Hide()
 	}
 	systray.AddSeparator()
 	u.v6Item = systray.AddMenuItemCheckbox("Use all adapters (IPv6 only if every adapter has it)", "Ticked: apps are pushed to IPv4 so every adapter is used. Unticked: IPv6 is allowed and funnels onto the adapters that have it.", u.bal.V6Mode() == engine.V6Auto)
@@ -130,6 +151,8 @@ func (u *trayUI) onReady() {
 				if err := platform.OpenURL(update.ReleasesURL); err != nil {
 					logx.Printf("error: opening the release page: %v\n", err)
 				}
+			case c := <-u.limitClicks:
+				u.applyLimit(c.row, c.mbPerSec)
 			case <-quit.ClickedCh:
 				systray.Quit()
 				return
@@ -249,11 +272,16 @@ func (u *trayUI) refresh() {
 			if u.lastRows[i] != "" {
 				r.Hide()
 				u.lastRows[i] = ""
+				u.rowNames[i] = ""
 			}
 			continue
 		}
 		s := live[i]
+		u.rowNames[i] = s.Name
 		txt := fmt.Sprintf("%s:  ↓%s ↑%s Mbps", s.Name, mbps(s.LinkIn), mbps(s.LinkOut))
+		if s.LimitMBps > 0 {
+			txt += "  limit " + limitLabel(s.LimitMBps) + " MB/s"
+		}
 		if on {
 			txt += fmt.Sprintf("  (%d flows via net-merge)", s.Active)
 		}
@@ -268,6 +296,7 @@ func (u *trayUI) refresh() {
 			r.Show()
 			u.lastRows[i] = txt
 		}
+		u.showLimit(i, s.LimitMBps)
 	}
 
 	// Hover tooltip: one line per adapter, so speeds are visible without opening the menu.
@@ -385,4 +414,59 @@ func shorten(s string, n int) string {
 		units += w
 	}
 	return s
+}
+
+// limitPresets are the caps offered in each adapter's submenu, in MByte/s.
+var limitPresets = []float64{1, 2, 5, 10, 20, 50, 100}
+
+type limitClick struct {
+	row      int
+	mbPerSec float64
+}
+
+func limitLabel(mbPerSec float64) string {
+	if mbPerSec == math.Trunc(mbPerSec) {
+		return fmt.Sprintf("%.0f", mbPerSec)
+	}
+	return fmt.Sprintf("%.1f", mbPerSec)
+}
+
+func limitTip(mbPerSec float64) string {
+	if mbPerSec <= 0 {
+		return "No cap: the adapter may use its full speed."
+	}
+	return "Cap this adapter at " + limitLabel(mbPerSec) +
+		" MB/s for downloads and uploads, across all of its flows. Takes effect immediately."
+}
+
+// showLimit ticks the cap the adapter shown in row is using.
+func (u *trayUI) showLimit(row int, mbPerSec float64) {
+	for i, it := range u.limitItems[row] {
+		want := i == 0 && mbPerSec <= 0
+		if i > 0 && math.Abs(limitPresets[i-1]-mbPerSec) < 0.01 {
+			want = true
+		}
+		if it.Checked() != want {
+			if want {
+				it.Check()
+			} else {
+				it.Uncheck()
+			}
+		}
+	}
+}
+
+// applyLimit caps the adapter currently shown in row. It runs on the menu goroutine, so the
+// checkmarks can be updated right away instead of on the next refresh.
+func (u *trayUI) applyLimit(row int, mbPerSec float64) {
+	name := u.rowNames[row]
+	if name == "" {
+		return
+	}
+	u.sched.SetLimit(name, mbPerSec)
+	if err := state.SaveLimits(u.stateDir, u.sched.Limits()); err != nil {
+		u.lastErr = "speed limit: " + err.Error()
+		logx.Printf("error: %v\n", err)
+	}
+	u.showLimit(row, mbPerSec)
 }
