@@ -40,11 +40,10 @@ Flags for `tray`/`run`/`socks`: `-include "WiFi,Ethernet"` (only these adapters)
 - Automatic balancing sends flows to the adapter with the lowest (busy flows + 1) / weight,
   discounting TCP sockets with no data for two seconds. Connecting sockets still count as busy.
   Weights update every second from smoothed throughput estimates, separately for IPv4 and IPv6
-  (a link can be fast over native IPv6 and slow over translated IPv4). Healthy links with no new
-  flow for five seconds get an exploration opportunity on a subsequent connection. Low estimates
-  start recovering toward neutral after 30 seconds without meaningful traffic. Address changes
+  (a link can be fast over native IPv6 and slow over translated IPv4). Idle low estimates
+  recover up to half the best link's capacity, never to equal preference. Address changes
   reset the affected family's estimate. Static weights retain least-open-flows scheduling;
-  exploration never bypasses health filtering, cooldowns or retry exclusions. Existing flows
+  scheduling respects health filtering, cooldowns and retry exclusions. Existing flows
   stay pinned to their original adapter; no background speed tests are used.
 - IPv6 (`-ipv6 auto|on|off`, tray checkbox): IPv6 flows can only leave through adapters that have IPv6, and
   apps that prefer IPv6 (browsers, OBS, curl) would funnel everything onto them. In `auto` mode IPv6 is
