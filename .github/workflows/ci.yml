@@ -30,7 +30,7 @@ jobs:
   # The tests on every other CPU Linux packages are built for: 386 runs natively on the x86-64
   # runner, the rest under qemu user-mode emulation (s390x is big-endian, the rest little).
   linux-arches:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # ubuntu-latest is 26.04 now, where qemu-user-static no longer installs
     strategy:
       fail-fast: false
       matrix:
