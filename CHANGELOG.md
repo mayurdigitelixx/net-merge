@@ -5,6 +5,8 @@ entry here before pushing a version tag.
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-10-28
+
 ### Added
 - **Speed limits per connection** from the tray menu: click a connection and pick 1, 2, 5, 10, 20, 50 or
   100 Mbit/s (or *Unlimited*). The cap covers that connection's downloads and uploads across all of its
