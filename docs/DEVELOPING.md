@@ -23,6 +23,28 @@ Flags for `tray`/`run`/`socks`: `-include "WiFi,Ethernet"` (only these adapters)
 
 ## How it works
 
+```mermaid
+flowchart LR
+    App["Your apps"] --> TUN["Virtual adapter<br/>Wintun, TUN or utun<br/>two /1 routes per IP family"]
+    TUN --> Stack["Userland TCP/IP stack<br/>gVisor, through tun2socks"]
+    Stack --> Sched["Scheduler<br/>lowest (busy flows + 1) / weight"]
+    Sched --> Wifi["New socket pinned to Wi-Fi"]
+    Sched --> Eth["New socket pinned to Ethernet"]
+    Sched --> Phone["New socket pinned to a phone tether"]
+    Wifi --> Net(("Internet"))
+    Eth --> Net
+    Phone --> Net
+    Probes["Probes and speed estimates<br/>every second"] -.-> Sched
+```
+
+The app's connection ends inside the userland stack. net-merge then opens a second connection to the real server from the chosen adapter and copies bytes between the two.
+
+### Design trade-offs
+
+- **End each TCP connection and re-dial it, instead of forwarding packets.** A server accepts one sender per connection, so this is the only way to use several links without a server of our own. The cost: one connection never gets faster than one link. Speed comes from many connections.
+- **Refuse IPv6 when the adapters differ.** Apps prefer IPv6, so allowing it would send everything to the few adapters that have it. In `auto` mode new IPv6 connections are refused at the first packet and apps fall back to IPv4 at once. The cost: IPv6-only hosts are unreachable until every adapter has IPv6, or until the setting is changed.
+- **No speed tests.** Weights come from the traffic that already flows. The cost: a link is measured only while it carries traffic, so an idle estimate can only recover up to half of the best link's speed.
+
 - ON creates a virtual adapter `net-merge` (Wintun on Windows, a kernel TUN on Linux, a utun on macOS) and two `/1` routes per IP family that beat the default route
   without touching it. OFF deletes them. If the process dies the adapter and routes die with it, so a
   crash can't leave the machine without internet.
