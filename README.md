@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://net-merge.org">Website</a> ·
-  <a href="https://github.com/rohit267/net-merge/releases/latest">Download</a> ·
+  <a href="https://github.com/net-merge/net-merge/releases/latest">Download</a> ·
   <a href="#android">Android</a> ·
   <a href="#install">Install</a> ·
   <a href="#add-a-second-connection">Add a second connection</a> ·
@@ -20,10 +20,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/rohit267/net-merge/actions/workflows/ci.yml"><img src="https://github.com/rohit267/net-merge/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/rohit267/net-merge/releases"><img src="https://img.shields.io/github/v/release/rohit267/net-merge" alt="Latest release"></a>
-  <a href="https://github.com/rohit267/net-merge/releases"><img src="https://img.shields.io/github/downloads/rohit267/net-merge/total" alt="Downloads"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/rohit267/net-merge" alt="MIT license"></a>
+  <a href="https://github.com/net-merge/net-merge/actions/workflows/ci.yml"><img src="https://github.com/net-merge/net-merge/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/net-merge/net-merge/releases"><img src="https://img.shields.io/github/v/release/net-merge/net-merge" alt="Latest release"></a>
+  <a href="https://github.com/net-merge/net-merge/releases"><img src="https://img.shields.io/github/downloads/net-merge/net-merge/total" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/net-merge/net-merge" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Android-blue" alt="Windows, macOS, Linux and Android">
   <a href="https://buymeacoffee.com/rohit267"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-rohit267-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
   <a href="https://paypal.me/champdev"><img src="https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal&logoColor=white" alt="Donate with PayPal"></a>
@@ -80,16 +80,16 @@ spread over all your links.
 **macOS and Linux**: paste this into a terminal.
 
 ```
-curl -fsSL https://raw.githubusercontent.com/rohit267/net-merge/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/net-merge/net-merge/main/install.sh | sh
 ```
 
 **Windows**: paste this into PowerShell.
 
 ```
-irm https://raw.githubusercontent.com/rohit267/net-merge/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/net-merge/net-merge/main/install.ps1 | iex
 ```
 
-Antivirus blocked it? Download [net-merge-setup.exe](https://github.com/rohit267/net-merge/releases/latest/download/net-merge-setup.exe)
+Antivirus blocked it? Download [net-merge-setup.exe](https://github.com/net-merge/net-merge/releases/latest/download/net-merge-setup.exe)
 and double-click it instead.
 
 That's it: net-merge is installed and its icon appears in the menu bar or tray. On Linux the script
@@ -109,13 +109,13 @@ net-merge updates with the rest of your system. To start it at sign-in, tick *St
 **Homebrew** (macOS):
 
 ```
-brew install rohit267/tap/net-merge && sudo "$(brew --prefix)/bin/net-merge" install && net-merge tray
+brew install net-merge/tap/net-merge && sudo "$(brew --prefix)/bin/net-merge" install && net-merge tray
 ```
 
 **macOS without Homebrew**:
 
 ```
-curl -fsSL https://github.com/rohit267/net-merge/releases/latest/download/net-merge-macos-universal.tar.gz | tar -xz -C /tmp net-merge && sudo /tmp/net-merge install && net-merge tray
+curl -fsSL https://github.com/net-merge/net-merge/releases/latest/download/net-merge-macos-universal.tar.gz | tar -xz -C /tmp net-merge && sudo /tmp/net-merge install && net-merge tray
 ```
 
 **Debian, Ubuntu, Linux Mint, Pop!_OS, Raspberry Pi OS** (apt):
@@ -156,18 +156,18 @@ echo https://pkg.net-merge.org/apk | sudo tee -a /etc/apk/repositories && sudo a
 **Homebrew** (Linux):
 
 ```
-brew install rohit267/tap/net-merge && sudo setcap cap_net_admin,cap_net_raw+ep "$(readlink -f "$(brew --prefix)/bin/net-merge")"
+brew install net-merge/tap/net-merge && sudo setcap cap_net_admin,cap_net_raw+ep "$(readlink -f "$(brew --prefix)/bin/net-merge")"
 ```
 
 **Any other Linux** (any CPU):
 
 ```
-curl -fsSL https://github.com/rohit267/net-merge/releases/latest/download/net-merge-linux-$(uname -m).tar.gz | tar -xz -C /tmp net-merge && sudo install -m 755 /tmp/net-merge /usr/local/bin/ && sudo setcap cap_net_admin,cap_net_raw+ep /usr/local/bin/net-merge
+curl -fsSL https://github.com/net-merge/net-merge/releases/latest/download/net-merge-linux-$(uname -m).tar.gz | tar -xz -C /tmp net-merge && sudo install -m 755 /tmp/net-merge /usr/local/bin/ && sudo setcap cap_net_admin,cap_net_raw+ep /usr/local/bin/net-merge
 ```
 
-**Windows by hand**: download [net-merge-setup.exe](https://github.com/rohit267/net-merge/releases/latest/download/net-merge-setup.exe)
+**Windows by hand**: download [net-merge-setup.exe](https://github.com/net-merge/net-merge/releases/latest/download/net-merge-setup.exe)
 and run it. Windows may warn because the app is not signed yet: click *More info*, then *Run anyway*.
-There is also a [portable zip](https://github.com/rohit267/net-merge/releases/latest/download/net-merge-portable.zip).
+There is also a [portable zip](https://github.com/net-merge/net-merge/releases/latest/download/net-merge-portable.zip).
 
 Then start it with `net-merge tray` (Linux, macOS) or from the Start menu (Windows).
 </details>
@@ -206,7 +206,7 @@ It needs Android 8.0 or newer.
   backups and download managers. One single download stays on one network, like on a computer.
 - **Mobile data stays on** while net-merge runs, so keep an eye on your data plan.
 - **One VPN at a time:** Android lets only one VPN app run, so net-merge can't run next to another VPN.
-- **Problems?** [Open an issue](https://github.com/rohit267/net-merge/issues/new/choose) and pick *Android*.
+- **Problems?** [Open an issue](https://github.com/net-merge/net-merge/issues/new/choose) and pick *Android*.
   The code is in [net-merge/android](https://github.com/net-merge/android).
 
 ## Uninstall
@@ -215,7 +215,7 @@ It needs Android 8.0 or newer.
 installed (Homebrew, apt, dnf, zypper, apk, pacman or the download), with its repository and key.
 
 ```
-curl -fsSL https://raw.githubusercontent.com/rohit267/net-merge/main/install.sh | sh -s -- uninstall
+curl -fsSL https://raw.githubusercontent.com/net-merge/net-merge/main/install.sh | sh -s -- uninstall
 ```
 
 **Windows**: paste this into PowerShell, or use *Settings > Apps > Installed apps > net-merge > Uninstall*.
@@ -236,7 +236,7 @@ Each block first stops the tray and turns off start at sign-in, then removes net
 **Homebrew** (macOS):
 
 ```
-net-merge quit; net-merge autostart off; sudo net-merge uninstall; brew uninstall net-merge && brew untap rohit267/tap
+net-merge quit; net-merge autostart off; sudo net-merge uninstall; brew uninstall net-merge && brew untap net-merge/tap
 ```
 
 **macOS without Homebrew**:
@@ -278,7 +278,7 @@ net-merge quit; net-merge autostart off; sudo apk del net-merge && sudo sed -i -
 **Homebrew** (Linux):
 
 ```
-net-merge quit; net-merge autostart off; brew uninstall net-merge && brew untap rohit267/tap
+net-merge quit; net-merge autostart off; brew uninstall net-merge && brew untap net-merge/tap
 ```
 
 **Any other Linux** (the download):
@@ -296,7 +296,7 @@ net-merge quit; net-merge autostart off; sudo rm -f /usr/local/bin/net-merge
 
 ```nix
 # flake.nix
-inputs.net-merge.url = "github:rohit267/net-merge";
+inputs.net-merge.url = "github:net-merge/net-merge";
 
 # configuration.nix (with `inputs` passed via specialArgs)
 imports = [ inputs.net-merge.nixosModules.default ];
@@ -306,7 +306,7 @@ programs.net-merge = {
 };
 ```
 
-To try it without installing: `sudo nix run github:rohit267/net-merge -- run`.
+To try it without installing: `sudo nix run github:net-merge/net-merge -- run`.
 
 ## Add a second connection
 
@@ -399,6 +399,21 @@ safe either: anything sent over the other link skips the VPN.
 Fix: set up the VPN on your routers instead, and turn the VPN app off on the computer. Most VPN
 providers have a guide for routers. net-merge then works as normal, and all your traffic still goes
 through the VPN.
+</details>
+
+<details>
+<summary><strong>Linux: the update fails with "404 Not Found" for rohit267.github.io</strong></summary>
+<br>
+
+The package repositories moved to `pkg.net-merge.org`. If you set them up before 28 October 2026 and have
+not updated net-merge since, your system still uses the old address, which is gone. Point it at the new one:
+
+```sh
+sudo sed -i 's#https://rohit267.github.io/net-merge#https://pkg.net-merge.org#g' $(ls /etc/apt/sources.list.d/net-merge.list /etc/yum.repos.d/net-merge.repo /etc/zypp/repos.d/net-merge.repo /etc/apk/repositories /etc/pacman.conf 2>/dev/null)
+```
+
+Then update as normal (`sudo apt update`, `sudo dnf upgrade`, `sudo zypper refresh`, `sudo apk update` or
+`sudo pacman -Sy`).
 </details>
 
 <details>

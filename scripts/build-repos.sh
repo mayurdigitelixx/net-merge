@@ -65,10 +65,10 @@ cat > "$OUT/index.html" <<HTML
 <title>net-merge packages</title>
 <style>body{font:16px/1.5 system-ui,sans-serif;max-width:46rem;margin:2rem auto;padding:0 1rem}pre{background:#f3f4f6;padding:.8rem;overflow:auto;border-radius:6px}@media(prefers-color-scheme:dark){body{background:#0b1220;color:#e5e7eb}pre{background:#111827}a{color:#4ade80}}</style>
 <h1>net-merge packages</h1>
-<p>Use all your internet connections at once. <a href="https://github.com/rohit267/net-merge">Project on GitHub</a>.
+<p>Use all your internet connections at once. <a href="https://github.com/net-merge/net-merge">Project on GitHub</a>.
 Signing key fingerprint: <code>$KEY</code>.</p>
 <h2>Any Linux or macOS: one line</h2>
-<pre>curl -fsSL https://raw.githubusercontent.com/rohit267/net-merge/main/install.sh | sh</pre>
+<pre>curl -fsSL https://raw.githubusercontent.com/net-merge/net-merge/main/install.sh | sh</pre>
 <p>It uses your package manager when it can. Or set it up by hand:</p>
 <h2>Debian, Ubuntu, Mint, Pop!_OS, Raspberry Pi OS</h2>
 <pre>curl -fsSL $BASE/apt/key.gpg | sudo tee /usr/share/keyrings/net-merge.gpg &gt;/dev/null
@@ -90,7 +90,7 @@ sudo pacman -Sy net-merge</pre>
 <pre>sudo wget -O /etc/apk/keys/net-merge.rsa.pub $BASE/apk/net-merge.rsa.pub
 echo $BASE/apk | sudo tee -a /etc/apk/repositories
 sudo apk add net-merge</pre>
-<p>Everything else: the <code>.tar.gz</code> for your CPU on the <a href="https://github.com/rohit267/net-merge/releases/latest">releases page</a>.</p>
+<p>Everything else: the <code>.tar.gz</code> for your CPU on the <a href="https://github.com/net-merge/net-merge/releases/latest">releases page</a>.</p>
 HTML
 touch "$OUT/.nojekyll"
 echo "built apt and dnf repositories in $OUT"

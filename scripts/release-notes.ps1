@@ -14,7 +14,7 @@ if (-not $m.Success -or -not $m.Groups[1].Value.Trim()) {
 $install = "**Install:** download ``net-merge-setup-$Version.exe`` below and run it (needs admin; it upgrades " +
     "an existing install in place). A portable zip is attached too. Not code-signed yet, so SmartScreen " +
     "will warn: *More info > Run anyway*."
-$install += "`n`n**macOS:** download ``net-merge-$Version-macos-universal.tar.gz`` (or ``brew install rohit267/tap/net-merge``). " +
+$install += "`n`n**macOS:** download ``net-merge-$Version-macos-universal.tar.gz`` (or ``brew install net-merge/tap/net-merge``). " +
     "**Linux:** install with apt, dnf, zypper, apk or pacman, or download the ``net-merge-$Version-linux-<cpu>.tar.gz`` " +
     "for your CPU, or a ``.deb`` / ``.rpm`` / ``.apk`` / ``.pkg.tar.zst``. The steps are in the Install section of the README."
 # UTF-8 without a BOM (Windows PowerShell's -Encoding utf8 adds one, which GitHub would show)

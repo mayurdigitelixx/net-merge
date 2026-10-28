@@ -33,7 +33,7 @@
 
   meta = {
     description = "Use all your network adapters at once: balances connections across Wi-Fi, Ethernet and tethers";
-    homepage = "https://github.com/rohit267/net-merge";
+    homepage = "https://github.com/net-merge/net-merge";
     license = lib.licenses.mit;
     mainProgram = "net-merge";
     platforms = lib.platforms.linux ++ lib.platforms.windows;

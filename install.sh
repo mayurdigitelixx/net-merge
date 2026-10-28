@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs net-merge on macOS or Linux, the easiest way the machine allows:
 #
-#   curl -fsSL https://raw.githubusercontent.com/rohit267/net-merge/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/net-merge/net-merge/main/install.sh | sh
 #
 # Linux: the system's package manager (apt, dnf, yum, zypper, apk, pacman) from net-merge's signed
 # repositories, so it updates with everything else; otherwise Homebrew; otherwise the release tarball.
@@ -11,10 +11,10 @@
 #
 # Uninstall, however it was installed:
 #
-#   curl -fsSL https://raw.githubusercontent.com/rohit267/net-merge/main/install.sh | sh -s -- uninstall
+#   curl -fsSL https://raw.githubusercontent.com/net-merge/net-merge/main/install.sh | sh -s -- uninstall
 set -eu
 
-REPO=https://github.com/rohit267/net-merge
+REPO=https://github.com/net-merge/net-merge
 BASE=https://pkg.net-merge.org
 FPR=0168C7AB77721656904811AE904F61E7F4F1C2A1
 
@@ -62,7 +62,7 @@ tarball() {
 # ---- Homebrew (as the user: brew refuses root)
 homebrew() {
     say "Installing with Homebrew"
-    brew install rohit267/tap/net-merge
+    brew install net-merge/tap/net-merge
     bin=$(brew --prefix)/bin/net-merge
     if [ "$(uname -s)" = Darwin ]; then
         $SUDO "$bin" install
@@ -129,7 +129,8 @@ uninstall() {
         if have brew && brew list --formula net-merge >/dev/null 2>&1; then
             say "Removing with Homebrew"
             brew uninstall net-merge
-            brew untap rohit267/tap >/dev/null 2>&1 || true
+            brew untap net-merge/tap >/dev/null 2>&1 || true
+            brew untap rohit267/tap >/dev/null 2>&1 || true   # the old name of the tap
         fi
         $SUDO rm -rf /var/run/net-merge "/Library/Application Support/net-merge" "$HOME/Library/Logs/net-merge.log"
     else
@@ -162,7 +163,8 @@ uninstall() {
         if have brew && brew list --formula net-merge >/dev/null 2>&1; then
             say "Removing with Homebrew"
             brew uninstall net-merge
-            brew untap rohit267/tap >/dev/null 2>&1 || true
+            brew untap net-merge/tap >/dev/null 2>&1 || true
+            brew untap rohit267/tap >/dev/null 2>&1 || true   # the old name of the tap
         fi
         $SUDO rm -f /usr/local/bin/net-merge   # the tarball
         rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/net-merge"
@@ -198,7 +200,7 @@ elif [ "$(uname -s)" = Linux ]; then
     elif have brew && [ "$(id -u)" != 0 ]; then homebrew
     else tarball; fi
 else
-    die "this script is for macOS and Linux; on Windows run in PowerShell: irm https://raw.githubusercontent.com/rohit267/net-merge/main/install.ps1 | iex"
+    die "this script is for macOS and Linux; on Windows run in PowerShell: irm https://raw.githubusercontent.com/net-merge/net-merge/main/install.ps1 | iex"
 fi
 
 have net-merge || PATH=$PATH:/usr/local/bin

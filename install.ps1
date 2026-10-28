@@ -1,6 +1,6 @@
 # Installs net-merge on Windows. In PowerShell:
 #
-#   irm https://raw.githubusercontent.com/rohit267/net-merge/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/net-merge/net-merge/main/install.ps1 | iex
 #
 # Downloads the newest installer into your Downloads folder and runs it with its progress window
 # showing; it asks for admin rights itself. Then starts the tray. Set $env:NET_MERGE_NO_START = '1'
@@ -9,7 +9,7 @@
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'   # the progress bar makes downloads very slow in Windows PowerShell
 
-$url = 'https://github.com/rohit267/net-merge/releases/latest/download/net-merge-setup.exe'
+$url = 'https://github.com/net-merge/net-merge/releases/latest/download/net-merge-setup.exe'
 $setup = Join-Path $env:USERPROFILE 'Downloads\net-merge-setup.exe'
 Write-Host "==> Downloading net-merge to $setup"
 New-Item -ItemType Directory -Force (Split-Path $setup) | Out-Null

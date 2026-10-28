@@ -39,12 +39,12 @@
     <keyword>load balancing</keyword>
   </keywords>
   <url type="homepage">https://net-merge.org</url>
-  <url type="bugtracker">https://github.com/rohit267/net-merge/issues</url>
+  <url type="bugtracker">https://github.com/net-merge/net-merge/issues</url>
   <url type="donation">https://buymeacoffee.com/rohit267</url>
   <screenshots>
     <screenshot type="default">
       <caption>The tray menu shows each connection's speed and how many connections it carries</caption>
-      <image>https://raw.githubusercontent.com/rohit267/net-merge/main/docs/tray-menu.png</image>
+      <image>https://raw.githubusercontent.com/net-merge/net-merge/main/docs/tray-menu.png</image>
     </screenshot>
   </screenshots>
   <content_rating type="oars-1.1"/>

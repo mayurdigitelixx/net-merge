@@ -14,11 +14,20 @@ entry here before pushing a version tag.
   saved caps. Only traffic net-merge relays is capped, so an app bound directly to an adapter is not
   affected.
 
+### Changed
+- **net-merge has a new home: [github.com/net-merge/net-merge](https://github.com/net-merge/net-merge).**
+  Old links, the install commands and Homebrew keep working. New Homebrew installs use
+  `brew install net-merge/tap/net-merge`. If your Linux update fails with "404 Not Found" for
+  `rohit267.github.io`, see *Troubleshooting* in the README.
+
 ### Fixed
 - **A fast link no longer gets skipped because it holds many idle connections** (chat apps and browsers
   keep some open). New connections now go by how busy each link really is. Speed estimates are smoothed,
   so one burst doesn't flip which link is preferred, and they start over when an adapter gets a new
   address. Thanks to @vwidmer (#48).
+- **The built-in SOCKS5 proxy checks a request before it reads it.** A request with a non-zero reserved
+  byte is now dropped, and a command other than CONNECT gets its "not supported" answer straight away.
+  Thanks to @b0r1ssh (#61).
 
 ## [0.3.5] - 2026-10-24
 
